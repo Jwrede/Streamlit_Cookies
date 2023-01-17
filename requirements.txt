@@ -1,0 +1,5 @@
+-r https://raw.githubusercontent.com/snowflakedb/snowflake-connector-python/v2.8.3/tested_requirements/requirements_310.reqs
+streamlit-aggrid
+streamlit_cookies_manager
+python-dotenv
+snowflake-connector-python[pandas]
