@@ -1,4 +1,5 @@
-import os
+import cognitojwt
+from jose import JWTError
 import streamlit as st
 from streamlit_cookies_manager import EncryptedCookieManager
 from dotenv import load_dotenv
@@ -10,11 +11,13 @@ import json
 # Read constants from environment file
 # ------------------------------------
 load_dotenv()
-COGNITO_DOMAIN = os.environ.get("COGNITO_DOMAIN")
-CLIENT_ID = os.environ.get("CLIENT_ID")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET")
-APP_URI = os.environ.get("APP_URI")
-COOKIE_KEY = "streamlit_data"
+cognito_secrets = st.secrets["cognito"]
+COGNITO_DOMAIN = cognito_secrets.get("cognito_domain")
+CLIENT_ID = cognito_secrets.get("client_id")
+CLIENT_SECRET = cognito_secrets.get("client_secret")
+APP_URI = cognito_secrets.get("app_uri")
+POOL_ID = cognito_secrets.get("pool_id")
+REGION = cognito_secrets.get("region")
 
 cookie_manager = EncryptedCookieManager(prefix="streamlit/", password="test")
 
@@ -31,17 +34,11 @@ def initialise_st_state_vars():
     Returns:
         Nothing.
     """
-    if "auth_code" not in cookie_manager:
-        cookie_manager["auth_code"] = ""
-    if "authenticated" not in cookie_manager:
-        cookie_manager["authenticated"] = json.dumps(False)
-    if "user_cognito_groups" not in cookie_manager:
-        cookie_manager["user_cognito_groups"] = json.dumps([])
     logout = st.experimental_get_query_params().get("logout")
-    if logout is not None:
-        cookie_manager["auth_code"] = ""
-        cookie_manager["authenticated"] = json.dumps(False)
-        cookie_manager["user_cognito_groups"] = json.dumps([])
+    if "tokens" not in cookie_manager or logout is not None:
+        cookie_manager["tokens"] = json.dumps({})
+    if "user_groups" not in cookie_manager or logout is not None:
+        cookie_manager["user_groups"] = json.dumps([])
     cookie_manager.save()
 
 
@@ -62,21 +59,6 @@ def get_auth_code():
         auth_code = ""
 
     return auth_code
-
-
-# ----------------------------------
-# Set authorization code after login
-# ----------------------------------
-def set_auth_code():
-    """
-    Sets auth_code state variable.
-
-    Returns:
-        Nothing.
-    """
-    initialise_st_state_vars()
-    auth_code = get_auth_code()
-    st.session_state["auth_code"] = auth_code
 
 
 # -------------------------------------------------------
@@ -169,8 +151,13 @@ def pad_base64(data):
         data += "=" * (4 - missing_padding)
     return data
 
+def decode_token(token):
+    header, payload, signature = token.split(".")
+    printable_payload = base64.urlsafe_b64decode(pad_base64(payload))
+    payload_dict = json.loads(printable_payload)
+    return payload_dict
 
-def get_user_cognito_groups(id_token):
+def get_user_groups(id_token):
     """
     Decode id token to get user cognito groups.
 
@@ -178,18 +165,16 @@ def get_user_cognito_groups(id_token):
         id_token: id token of a successfully authenticated user.
 
     Returns:
-        user_cognito_groups: a list of all the cognito groups the user belongs to.
+        user_groups: a list of all the cognito groups the user belongs to.
     """
-    user_cognito_groups = []
+    user_groups = []
     if id_token != "":
-        header, payload, signature = id_token.split(".")
-        printable_payload = base64.urlsafe_b64decode(pad_base64(payload))
-        payload_dict = json.loads(printable_payload)
+        payload_dict = decode_token(id_token)
         try:
-            user_cognito_groups = list(dict(payload_dict)["cognito:groups"])
+            user_groups = list(dict(payload_dict)["cognito:groups"])
         except (KeyError, TypeError):
             pass
-    return user_cognito_groups
+    return user_groups
 
 
 # -----------------------------
@@ -204,30 +189,32 @@ def set_st_state_vars():
     initialise_st_state_vars()
     auth_code = get_auth_code()
     access_token, id_token = get_user_tokens(auth_code)
-    user_cognito_groups = get_user_cognito_groups(id_token)
+    user_groups = get_user_groups(id_token)
 
     if access_token != "":
-        cookie_manager["auth_code"] = auth_code
-        cookie_manager["authenticated"] = json.dumps(True)
-        cookie_manager["user_cognito_groups"] = json.dumps(user_cognito_groups)
+        cookie_manager["tokens"] = json.dumps({"access_token": access_token, "id_token": id_token})
+        cookie_manager["user_groups"] = json.dumps(user_groups)
         cookie_manager.save()
 
 
 def check_access():
-    return cookie_manager.get("auth_code")
+    tokens = json.loads(cookie_manager.get("tokens"))
+    if tokens is not None and "access_token" in tokens and "id_token" in tokens:
+        return verify_token(tokens["id_token"])
 
 
-def verify_token(access_token, id_token):
-    with open("jwks.json") as f:
-        print(f)
-        print("a")
-    return True
+def verify_token(id_token):
+    try:
+        cognitojwt.decode(id_token, REGION, POOL_ID, CLIENT_ID)
+        return True
+    except (cognitojwt.exceptions.CognitoJWTException, JWTError) as e:
+        return False
 
 
 def check_role(role):
-    cookie_user_groups = cookie_manager.get("user_cognito_groups")
+    cookie_user_groups = cookie_manager.get("user_groups")
     if cookie_user_groups is not None:
-        return role in json.loads(cookie_manager.get("user_cognito_groups"))
+        return role in json.loads(cookie_manager.get("user_groups"))
     else:
         return False
 

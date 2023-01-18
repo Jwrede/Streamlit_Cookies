@@ -1,5 +1,6 @@
--r https://raw.githubusercontent.com/snowflakedb/snowflake-connector-python/v2.8.3/tested_requirements/requirements_310.reqs
-streamlit-aggrid
-streamlit-cookies-manager
+-r https://raw.githubusercontent.com/snowflakedb/snowflake-connector-python/v2.8.3/tested_requirements/requirements_39.reqs
+streamlit-aggrid==0.3.3
+streamlit-cookies-manager==0.2.0
 python-dotenv
-snowflake-connector-python[pandas]
+snowflake-connector-python[pandas]==2.8.3
+cognitojwt==1.4.1
