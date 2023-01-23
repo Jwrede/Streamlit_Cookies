@@ -24,9 +24,6 @@ cookie_manager = EncryptedCookieManager(prefix="streamlit/", password="test")
 if not cookie_manager.ready():
     st.stop()
 
-# ------------------------------------
-# Initialise Streamlit state variables
-# ------------------------------------
 def initialise_st_state_vars():
     """
     Initialise Streamlit state variables.
@@ -42,9 +39,6 @@ def initialise_st_state_vars():
     cookie_manager.save()
 
 
-# ----------------------------------
-# Get authorization code after login
-# ----------------------------------
 def get_auth_code():
     """
     Gets auth_code state variable.
@@ -61,9 +55,6 @@ def get_auth_code():
     return auth_code
 
 
-# -------------------------------------------------------
-# Use authorization code to get user access and id tokens
-# -------------------------------------------------------
 def get_user_tokens(auth_code):
     """
     Gets user tokens by making a post request call.
@@ -107,9 +98,6 @@ def get_user_tokens(auth_code):
     return access_token, id_token
 
 
-# ---------------------------------------------
-# Use access token to retrieve user information
-# ---------------------------------------------
 def get_user_info(access_token):
     """
     Gets user info from aws cognito server.
@@ -132,9 +120,6 @@ def get_user_info(access_token):
     return userinfo_response.json()
 
 
-# -------------------------------------------------------
-# Decode access token to JWT to get user's cognito groups
-# -------------------------------------------------------
 # Ref - https://gist.github.com/GuillaumeDerval/b300af6d4f906f38a051351afab3b95c
 def pad_base64(data):
     """
@@ -151,12 +136,6 @@ def pad_base64(data):
         data += "=" * (4 - missing_padding)
     return data
 
-def decode_token(token):
-    header, payload, signature = token.split(".")
-    printable_payload = base64.urlsafe_b64decode(pad_base64(payload))
-    payload_dict = json.loads(printable_payload)
-    return payload_dict
-
 def get_user_groups(id_token):
     """
     Decode id token to get user cognito groups.
@@ -169,7 +148,9 @@ def get_user_groups(id_token):
     """
     user_groups = []
     if id_token != "":
-        payload_dict = decode_token(id_token)
+        header, payload, signature = id_token.split(".")
+        printable_payload = base64.urlsafe_b64decode(pad_base64(payload))
+        payload_dict = json.loads(printable_payload)
         try:
             user_groups = list(dict(payload_dict)["cognito:groups"])
         except (KeyError, TypeError):
@@ -177,12 +158,10 @@ def get_user_groups(id_token):
     return user_groups
 
 
-# -----------------------------
-# Set Streamlit state variables
-# -----------------------------
-def set_st_state_vars():
+def activate():
     """
     Sets the streamlit state variables after user authentication.
+    
     Returns:
         Nothing.
     """
@@ -198,12 +177,24 @@ def set_st_state_vars():
 
 
 def check_access():
+    """
+    Checks whether the current user is logged into Cognito
+
+    Returns:
+        bool
+    """
     tokens = json.loads(cookie_manager.get("tokens"))
     if tokens is not None and "access_token" in tokens and "id_token" in tokens:
         return verify_token(tokens["id_token"])
 
 
 def verify_token(id_token):
+    """
+    Checks if the id_token is valid and not expired yet
+
+    Returns:
+        bool
+    """
     try:
         cognitojwt.decode(id_token, REGION, POOL_ID, CLIENT_ID)
         return True
@@ -214,7 +205,7 @@ def verify_token(id_token):
 def check_role(role):
     cookie_user_groups = cookie_manager.get("user_groups")
     if cookie_user_groups is not None:
-        return role in json.loads(cookie_manager.get("user_groups"))
+        return role in json.loads(cookie_user_groups)
     else:
         return False
 

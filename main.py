@@ -3,17 +3,19 @@ from jscode import *
 import streamlit as st
 import snowflake.connector
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
+import json
 
-REDIRECT_URI='http://localhost:8501/'
+st.set_page_config(layout="wide")
 
 import authenticate as authenticate
 
-authenticate.set_st_state_vars()
+authenticate.activate()
 
 if authenticate.check_access():
-    logout = authenticate.button_logout()
+    authenticate.button_logout()
 else:
     authenticate.button_login()
+
 
 @st.experimental_singleton
 def init_connection():
@@ -57,7 +59,7 @@ if (
     cur.execute(sql)
     data = cur.fetch_pandas_all()
 
-    data = data[["SCHEMA_NAME", "VIEW_NAME", "COLUMN_NAME", "SYSTEM", "MASK_RULE_NAME", "COL_MASK_KEY_FLAG", "NEW_COLUMN_FLAG", "ROW_UPD_TS"]]
+    data = data[["SCHEMA_NAME", "VIEW_NAME", "COLUMN_NAME", "SYSTEM", "CLIENT", "MASK_RULE_NAME", "COL_MASK_KEY_FLAG", "MANUAL_COLUMN_SQL", "NEW_COLUMN_FLAG", "DELETED_FLAG"]]
 
     schema_views = [f"{schema}.{view}" for schema, view in data[["SCHEMA_NAME", "VIEW_NAME"]].drop_duplicates(subset=["SCHEMA_NAME", "VIEW_NAME"]).values]
     selected_table = st.selectbox("View", schema_views)
@@ -74,6 +76,34 @@ if (
     res = AgGrid(data, gridOptions=build, columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW, allow_unsafe_jscode=True)
 
     if authenticate.check_role("WRITE"):
-        st.button("save")
+        if st.button("Save"):
+            for _, row in res.data.iterrows():
+                print(
+                    json.dumps(
+                        {
+                            'meta': {
+                                'version': '1.0',
+                                'triggered_from': '<service_name>',
+                                'manual': 'false',
+                                'user': '-'
+                            },
+                            'parameters': {
+                                'database': st.secrets.get("snowflake").get("database"),
+                                'update': {
+                                    'schema_name': row["SCHEMA_NAME"],
+                                    'view_name': row["VIEW_NAME"],
+                                    'column_name': row["COLUMN_NAME"],
+                                    'system': row["SYSTEM"],
+                                    'client': row["CLIENT"],
+                                    'mask_rule_name': row["MASK_RULE_NAME"], 
+                                    'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
+                                    'manual_column_sql': row["MANUAL_COLUMN_SQL"],
+                                    'new_column_flag': row["NEW_COLUMN_FLAG"],
+                                    'deleted_flag': row["DELETED_FLAG"]
+                                } 
+                            }
+                        }
+                    )
+                )
 else:
     st.write("Please Login")
