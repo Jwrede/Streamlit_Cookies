@@ -73,7 +73,13 @@ if (
     build = builder.build()
     build['getRowStyle'] = jscode
 
-    res = AgGrid(data, gridOptions=build, columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW, allow_unsafe_jscode=True)
+    res = AgGrid(
+        data, 
+        gridOptions=build, 
+        columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW, 
+        allow_unsafe_jscode=True,
+        enable_enterprise_modules=False
+    )
 
     if authenticate.check_role("WRITE"):
         if st.button("Save"):
