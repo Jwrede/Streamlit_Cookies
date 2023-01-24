@@ -9,9 +9,10 @@ st.set_page_config(layout="wide")
 
 import authenticate as authenticate
 
-authenticate.activate()
+user_info = authenticate.activate()
 
 if authenticate.check_access():
+    st.sidebar.write(user_info["username"])
     authenticate.button_logout()
 else:
     authenticate.button_login()
@@ -27,7 +28,6 @@ if (
     authenticate.check_access()
     and authenticate.check_role("READ")
 ):
-
     conn = init_connection()
     cur = conn.cursor()
 
@@ -36,7 +36,7 @@ if (
     # MASK_TYPES = cur.fetch_pandas_all()
 
     MASK_TYPES = [
-        None,
+        "",
         "mask_erk",
         "mask_akz",
         "mask_date",
@@ -64,12 +64,16 @@ if (
     schema_views = [f"{schema}.{view}" for schema, view in data[["SCHEMA_NAME", "VIEW_NAME"]].drop_duplicates(subset=["SCHEMA_NAME", "VIEW_NAME"]).values]
     selected_table = st.selectbox("View", schema_views)
 
-    data = data[(data["SCHEMA_NAME"] == selected_table.split(".")[0]) & (data["VIEW_NAME"] == selected_table.split(".")[1])].copy()
+    data = data[(data["SCHEMA_NAME"] == selected_table.split(".")[0]) & (data["VIEW_NAME"] == selected_table.split(".")[1])].copy().reset_index(drop=True)
 
 
     builder = GridOptionsBuilder.from_dataframe(data)
-    builder.configure_column("MASK_RULE_NAME", editable=True, cellEditor="agSelectCellEditor", cellEditorParams={'values': MASK_TYPES })
+    builder.configure_column("MASK_RULE_NAME", editable=True, singleClickEdit=True, cellEditor="agSelectCellEditor", cellEditorParams={'values': MASK_TYPES })
+    builder.configure_column("MANUAL_COLUMN_SQL", editable=True, singleClickEdit=True)
+    data[['COL_MASK_KEY_FLAG', 'NEW_COLUMN_FLAG', "DELETED_FLAG"]] = data[['COL_MASK_KEY_FLAG', 'NEW_COLUMN_FLAG', "DELETED_FLAG"]].fillna(0).astype(int)
     builder.configure_column('COL_MASK_KEY_FLAG', editable=True, cellRenderer=checkbox_renderer)
+    builder.configure_column('NEW_COLUMN_FLAG', editable=True, cellRenderer=checkbox_renderer)
+    builder.configure_column('DELETED_FLAG', editable=True, cellRenderer=checkbox_renderer)
     build = builder.build()
     build['getRowStyle'] = jscode
 
@@ -78,12 +82,14 @@ if (
         gridOptions=build, 
         columns_auto_size_mode=ColumnsAutoSizeMode.FIT_ALL_COLUMNS_TO_VIEW, 
         allow_unsafe_jscode=True,
-        enable_enterprise_modules=False
+        enable_enterprise_modules=False,
+        height=750
     )
 
     if authenticate.check_role("WRITE"):
+        changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
         if st.button("Save"):
-            for _, row in res.data.iterrows():
+            if len(changed_rows) > 0:
                 print(
                     json.dumps(
                         {
@@ -91,25 +97,25 @@ if (
                                 'version': '1.0',
                                 'triggered_from': '<service_name>',
                                 'manual': 'false',
-                                'user': '-'
+                                'user': user_info["username"]
                             },
                             'parameters': {
                                 'database': st.secrets.get("snowflake").get("database"),
-                                'update': {
+                                'update': [{
                                     'schema_name': row["SCHEMA_NAME"],
                                     'view_name': row["VIEW_NAME"],
                                     'column_name': row["COLUMN_NAME"],
-                                    'system': row["SYSTEM"],
-                                    'client': row["CLIENT"],
-                                    'mask_rule_name': row["MASK_RULE_NAME"], 
-                                    'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
-                                    'manual_column_sql': row["MANUAL_COLUMN_SQL"],
-                                    'new_column_flag': row["NEW_COLUMN_FLAG"],
-                                    'deleted_flag': row["DELETED_FLAG"]
-                                } 
+                                    'set': {
+                                        'mask_rule_name': row["MASK_RULE_NAME"], 
+                                        'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
+                                        'manual_column_sql': row["MANUAL_COLUMN_SQL"],
+                                        'new_column_flag': row["NEW_COLUMN_FLAG"],
+                                        'deleted_flag': row["DELETED_FLAG"]
+                                    }
+                                } for _,row in changed_rows.iterrows()]
                             }
                         }
                     )
-                )
+            )
 else:
     st.write("Please Login")

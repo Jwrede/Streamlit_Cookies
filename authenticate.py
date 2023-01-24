@@ -1,3 +1,4 @@
+from typing import Optional
 import cognitojwt
 from jose import JWTError
 import streamlit as st
@@ -98,7 +99,7 @@ def get_user_tokens(auth_code):
     return access_token, id_token
 
 
-def get_user_info(access_token):
+def get_user_info():
     """
     Gets user info from aws cognito server.
 
@@ -109,15 +110,17 @@ def get_user_info(access_token):
     Returns:
         userinfo_response: json object.
     """
-    userinfo_url = f"{COGNITO_DOMAIN}/oauth2/userInfo"
-    headers = {
-        "Content-Type": "application/json;charset=UTF-8",
-        "Authorization": f"Bearer {access_token}",
-    }
+    access_token = json.loads(cookie_manager["tokens"]).get("access_token")
+    if access_token:
+        userinfo_url = f"{COGNITO_DOMAIN}/oauth2/userInfo"
+        headers = {
+            "Content-Type": "application/json;charset=UTF-8",
+            "Authorization": f"Bearer {access_token}",
+        }
 
-    userinfo_response = requests.get(userinfo_url, headers=headers)
+        userinfo_response = requests.get(userinfo_url, headers=headers)
 
-    return userinfo_response.json()
+        return userinfo_response.json()
 
 
 # Ref - https://gist.github.com/GuillaumeDerval/b300af6d4f906f38a051351afab3b95c
@@ -158,7 +161,7 @@ def get_user_groups(id_token):
     return user_groups
 
 
-def activate():
+def activate() -> Optional[dict]:
     """
     Sets the streamlit state variables after user authentication.
     
@@ -174,6 +177,8 @@ def activate():
         cookie_manager["tokens"] = json.dumps({"access_token": access_token, "id_token": id_token})
         cookie_manager["user_groups"] = json.dumps(user_groups)
         cookie_manager.save()
+
+    return get_user_info()
 
 
 def check_access():
