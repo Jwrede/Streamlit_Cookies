@@ -7,15 +7,16 @@ import json
 
 st.set_page_config(layout="wide")
 
-import authenticate as authenticate
+from streamlit_authenticator import Authenticator
 
-user_info = authenticate.activate()
+authenticator = Authenticator(**st.secrets["cognito"])
+user_info = authenticator.activate()
 
-if authenticate.check_access():
+if authenticator.check_access():
     st.sidebar.write(user_info["username"])
-    authenticate.button_logout()
+    authenticator.login_button(logout=True)
 else:
-    authenticate.button_login()
+    authenticator.login_button()
 
 
 @st.experimental_singleton
@@ -25,8 +26,8 @@ def init_connection():
     )
 
 if (
-    authenticate.check_access()
-    and authenticate.check_role("READ")
+    authenticator.check_access()
+    and authenticator.check_role("READ")
 ):
     conn = init_connection()
     cur = conn.cursor()
@@ -86,7 +87,7 @@ if (
         height=750
     )
 
-    if authenticate.check_role("WRITE"):
+    if authenticator.check_role("WRITE"):
         changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
         if st.button("Save"):
             if len(changed_rows) > 0:
