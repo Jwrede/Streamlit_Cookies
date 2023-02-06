@@ -22,6 +22,7 @@ def put_request_masking(trigger_json):
     print("http response headers from " + service_name + " src before parsing: " + str(response.headers))
     if response.status_code != 200:
         # hier könnte man ggf. die Errormessage des Service parsen, falls dieser eine zurückgibt.
+        print(response.json())
         raise RuntimeError("Error calling " + service_name + " src with the event: " + json.dumps(trigger_json))
     response_json = response.json()
     parsed_response = response_json['data'][0][1]
