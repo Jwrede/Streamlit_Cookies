@@ -117,6 +117,6 @@ if (
                         } for _,row in changed_rows.iterrows()]
                     }
                 })
-                put_request_masking(changes)
+                put_request_masking(json.dumps(changes))
 else:
     st.write("Please Login")
