@@ -94,20 +94,10 @@ if (
         changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
         if st.button("Save"):
             if len(changed_rows) > 0:
-                api_url = "https://t27woae5z8.execute-api.eu-central-1.amazonaws.com/dev/masking"
-                credentials = boto3.Session().get_credentials()
-                auth = AWSRequestsAuth(
-                    aws_access_key=credentials.access_key,
-                    aws_secret_access_key=credentials.secret_key,
-                    aws_token=credentials.token,
-                    aws_host='t27woae5z8.execute-api.eu-central-1.amazonaws.com',
-                    aws_region='eu-central-1',
-                    aws_service='execute-api'
-                )
                 changes = json.dumps({
                     'meta': {
                         'version': '1.0',
-                        'triggered_from': '<service_name>',
+                        'triggered_from': 'masking-service',
                         'manual': 'false',
                         'user': user_info["username"]
                     },
@@ -127,12 +117,6 @@ if (
                         } for _,row in changed_rows.iterrows()]
                     }
                 })
-                print(changes)
-
-                response = requests.put(api_url, auth=auth, json=changes, timeout=300)
-                print(response.json())
-                if response.status_code != 200: 
-                    raise RuntimeError("Error")
-            
+                put_request_masking(changes)
 else:
     st.write("Please Login")
