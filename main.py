@@ -127,6 +127,7 @@ if (
                         } for _,row in changed_rows.iterrows()]
                     }
                 })
+                print(changes)
 
                 response = requests.put(api_url, auth=auth, json=changes, timeout=300)
                 print(response.json())
