@@ -129,9 +129,9 @@ if (
                 })
 
                 response = requests.put(api_url, auth=auth, json=changes, timeout=300)
+                print(response.json())
                 if response.status_code != 200: 
                     raise RuntimeError("Error")
-                print(response.json()['data'][0][1])
             
 else:
     st.write("Please Login")
