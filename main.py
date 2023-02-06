@@ -1,9 +1,12 @@
-from jscode import *
+from helper import *
 
+import requests
 import streamlit as st
 import snowflake.connector
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
 import json
+import boto3
+from aws_requests_auth import AWSRequestsAuth
 
 st.set_page_config(layout="wide")
 
@@ -91,32 +94,44 @@ if (
         changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
         if st.button("Save"):
             if len(changed_rows) > 0:
-                print(
-                    json.dumps(
-                        {
-                            'meta': {
-                                'version': '1.0',
-                                'triggered_from': '<service_name>',
-                                'manual': 'false',
-                                'user': user_info["username"]
-                            },
-                            'parameters': {
-                                'database': st.secrets.get("snowflake").get("database"),
-                                'update': [{
-                                    'schema_name': row["SCHEMA_NAME"],
-                                    'view_name': row["VIEW_NAME"],
-                                    'column_name': row["COLUMN_NAME"],
-                                    'set': {
-                                        'mask_rule_name': row["MASK_RULE_NAME"], 
-                                        'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
-                                        'manual_column_sql': row["MANUAL_COLUMN_SQL"],
-                                        'new_column_flag': row["NEW_COLUMN_FLAG"],
-                                        'deleted_flag': row["DELETED_FLAG"]
-                                    }
-                                } for _,row in changed_rows.iterrows()]
+                api_url = "https://t27woae5z8.execute-api.eu-central-1.amazonaws.com/dev/masking"
+                credentials = boto3.Session().get_credentials()
+                auth = AWSRequestsAuth(
+                    aws_access_key=credentials.access_key,
+                    aws_secret_access_key=credentials.secret_key,
+                    aws_token=credentials.token,
+                    aws_host='t27woae5z8.execute-api.eu-central-1.amazonaws.com',
+                    aws_region='eu-central-1',
+                    aws_service='execute-api'
+                )
+                changes = json.dumps({
+                    'meta': {
+                        'version': '1.0',
+                        'triggered_from': '<service_name>',
+                        'manual': 'false',
+                        'user': user_info["username"]
+                    },
+                    'parameters': {
+                        'database': st.secrets.get("snowflake").get("database"),
+                        'update': [{
+                            'schema_name': row["SCHEMA_NAME"],
+                            'view_name': row["VIEW_NAME"],
+                            'column_name': row["COLUMN_NAME"],
+                            'set': {
+                                'mask_rule_name': row["MASK_RULE_NAME"], 
+                                'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
+                                'manual_column_sql': row["MANUAL_COLUMN_SQL"],
+                                'new_column_flag': row["NEW_COLUMN_FLAG"],
+                                'deleted_flag': row["DELETED_FLAG"]
                             }
-                        }
-                    )
-            )
+                        } for _,row in changed_rows.iterrows()]
+                    }
+                })
+
+                response = requests.put(api_url, auth=auth, json=changes, timeout=300)
+                if response.status_code != 200: 
+                    raise RuntimeError("Error")
+                print(response.json()['data'][0][1])
+            
 else:
     st.write("Please Login")

@@ -4,3 +4,6 @@ git+https://github.com/Jwrede/streamlit_authenticator@main
 python-dotenv
 snowflake-connector-python[pandas]==2.8.3
 cognitojwt==1.4.1
+boto3==1.26.64
+aws-requests-auth==0.4.3
+requests

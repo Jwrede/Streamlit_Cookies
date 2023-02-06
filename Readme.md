@@ -45,19 +45,6 @@
 6. Activate nginx `sudo systemctl start nginx`
 6. Install Python3.9 https://computingforgeeks.com/how-to-install-python-on-amazon-linux/
 7. Create venv and install requirements
-8. "/venv/lib/python3.9/site-packages/streamlit_cookies_manager/cookie_manager.py" change 
-    ```python
-        def save(self):
-        if self._queue:
-            self._run_component(save_only=True, key="CookieManager.sync_cookies.save")
-    ```
-    to
-    ```python
-        def save(self):
-        if self._queue:
-            import random
-            self._run_component(save_only=True, key="CookieManager.sync_cookies.save" + str(random.random()))
-    ```
-9. In cognito add redirect URL `https://<IP>` and logout URL `https://<IP>/?logout=true`
+8. In cognito add redirect URL `https://<IP>` and logout URL `https://<IP>/?logout=true`
 9. Start `streamlit run main.py --server.address=127.0.0.1`
 10. 
