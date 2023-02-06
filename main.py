@@ -6,7 +6,7 @@ import snowflake.connector
 from st_aggrid import AgGrid, GridOptionsBuilder, ColumnsAutoSizeMode
 import json
 import boto3
-from aws_requests_auth import AWSRequestsAuth
+from aws_requests_auth.aws_auth import AWSRequestsAuth
 
 st.set_page_config(layout="wide")
 
