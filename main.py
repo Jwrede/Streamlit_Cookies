@@ -94,7 +94,7 @@ if (
         changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
         if st.button("Save"):
             if len(changed_rows) > 0:
-                changes = json.dumps({
+                changes = {
                     'meta': {
                         'version': '1.0',
                         'triggered_from': 'masking-service',
@@ -116,7 +116,7 @@ if (
                             }
                         } for _,row in changed_rows.iterrows()]
                     }
-                })
+                }
                 put_request_masking(changes)
 else:
     st.write("Please Login")
