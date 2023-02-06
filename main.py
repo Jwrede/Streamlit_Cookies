@@ -92,6 +92,7 @@ if (
 
     if authenticator.check_role("WRITE"):
         changed_rows = res.data.astype(str)[~(data.astype(str) == res.data.astype(str)).all(axis=1)]
+        columns = ["MASK_RULE_NAME", "COL_MASK_KEY_FLAG", "MANUAL_COLUMN_SQL", "NEW_COLUMN_FLAG","DELETED_FLAG"]
         if st.button("Save"):
             if len(changed_rows) > 0:
                 changes = {
@@ -107,13 +108,7 @@ if (
                             'schema_name': row["SCHEMA_NAME"],
                             'view_name': row["VIEW_NAME"],
                             'column_name': row["COLUMN_NAME"],
-                            'set': {
-                                'mask_rule_name': row["MASK_RULE_NAME"], 
-                                'col_mask_key_flag': row["COL_MASK_KEY_FLAG"],
-                                'manual_column_sql': row["MANUAL_COLUMN_SQL"],
-                                'new_column_flag': row["NEW_COLUMN_FLAG"],
-                                'deleted_flag': row["DELETED_FLAG"]
-                            }
+                            'set': { c.lower():row[c] for c in columns if row[c] != "None" }
                         } for _,row in changed_rows.iterrows()]
                     }
                 }
