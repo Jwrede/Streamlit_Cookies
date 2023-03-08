@@ -6,7 +6,7 @@ import json
 
 def put_request_masking(trigger_json):
     service_name = "masking_service"
-    api_url = "https://t27woae5z8.execute-api.eu-central-1.amazonaws.com/dev/masking"
+    api_url = "https://t27woae5z8.execute-api.eu-central-1.amazonaws.com/dev/masking/main"
     credentials = boto3.Session().get_credentials()
     auth = AWSRequestsAuth(
         aws_access_key=credentials.access_key,
@@ -22,7 +22,6 @@ def put_request_masking(trigger_json):
     print("http response headers from " + service_name + " src before parsing: " + str(response.headers))
     if response.status_code != 200:
         # hier könnte man ggf. die Errormessage des Service parsen, falls dieser eine zurückgibt.
-        print(response.json())
         raise RuntimeError("Error calling " + service_name + " src with the event: " + json.dumps(trigger_json))
     response_json = response.json()
     parsed_response = response_json['data'][0][1]
@@ -43,7 +42,6 @@ jscode = JsCode("""
 
 checkbox_renderer = JsCode("""
     class CheckboxRenderer{
-
         init(params) {
             this.params = params;
 

@@ -2,13 +2,16 @@
 2. install git `sudo yum update -y; sudo yum install git -y`
 2. Get streamlit project
 3. Fill .streamlit/secrets.toml
-4. install nginx
+4. Install Python3.9 https://computingforgeeks.com/how-to-install-python-on-amazon-linux/
+5. Install requirements ` pip3.9 install -r requirements.txt`
+6. In cognito add redirect URL `https://<IP>` and logout URL `https://<IP>/?logout=true`
+7. install nginx
     ```
     sudo amazon-linux-extras enable epel
     sudo yum install epel-release
     sudo yum install nginx
     ```
-5. Add this to `/etc/nginx/conf.d/*` or to `/etc/nginx/nginx.conf` and specify `<IP>`, `<streamlit_port>` and the paths to the `.crt` and the `.key`
+8. Add this to `/etc/nginx/conf.d/*` or to `/etc/nginx/nginx.conf` and specify `<IP>`, `<streamlit_port>` and the paths to the `.crt` and the `.key`
     ```nginx
     server {
         listen 443 ssl;
@@ -43,8 +46,9 @@
     ```
     for a self signed certificate use `openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -keyout example.key -out example.crt`
 6. Activate nginx `sudo systemctl start nginx`
-6. Install Python3.9 https://computingforgeeks.com/how-to-install-python-on-amazon-linux/
-7. Create venv and install requirements
-8. In cognito add redirect URL `https://<IP>` and logout URL `https://<IP>/?logout=true`
-9. Start `streamlit run main.py --server.address=127.0.0.1`
-10. 
+
+7. Start `streamlit run main.py --server.address=127.0.0.1`
+
+
+## TODO
+- Ask for permission to access MASKING_RULE_DEFINITION
